@@ -1,0 +1,32 @@
+local tmuxion = require("tmuxion")
+
+local config = tmuxion.config_builder()
+
+session_selector:
+  width: 64
+  height: 24
+  scrolloff: 4
+  inverted: false
+  results:
+    style: null
+    border: plain
+    border_style: null
+    title: " Results "
+    title_style: null
+    item_style: null
+    item_match_style: fg:yellow
+    selection_style: bg:black bold
+    selection_prefix: "> "
+    selection_prefix_style: null
+  prompt:
+    style: null
+    border: plain
+    border_style: null
+    title: " Select Session "
+    title_style: null
+    pattern_style: null
+    pattern_prefix: "> "
+    pattern_prefix_style: null
+keybinds:
+  session_selector: [C-s, M-s]
+  last_session: [w]
