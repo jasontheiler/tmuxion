@@ -6,7 +6,7 @@ use tmux_interface::{DisplayMessage, SelectLayout, SplitWindow, Tmux};
 
 use crate::tmux::pane::{self, Pane};
 
-pub(super) const FORMAT: &str = "{\"id\":\"#{window_id}\",\"path\":\"#{session_path}\"}";
+pub(super) const FORMAT: &str = r##"{"id":"#{window_id}","path":"#{session_path}"}"##;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Window {

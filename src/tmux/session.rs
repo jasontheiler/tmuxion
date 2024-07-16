@@ -17,7 +17,7 @@ use crate::{
     },
 };
 
-pub(super) const FORMAT: &str = "{\"id\":\"#{session_id}\",\"path\":\"#{session_path}\"}";
+pub(super) const FORMAT: &str = r##"{"id":"#{session_id}","path":"#{session_path}"}"##;
 static LAST_SESSION_FILE_PATH: Lazy<PathBuf> =
     Lazy::new(|| CACHE_DIR_PATH.join("last_session.json"));
 

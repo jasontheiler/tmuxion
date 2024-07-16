@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use tmux_interface::{ResizePane, SendKeys, Tmux};
 
-pub(super) const FORMAT: &str = "{\"id\":\"#{pane_id}\"}";
+pub(super) const FORMAT: &str = r##"{"id":"#{pane_id}"}"##;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Pane {
