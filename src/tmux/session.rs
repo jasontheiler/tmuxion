@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use mlua::LuaSerdeExt as _;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use tmux_interface::{
@@ -167,11 +168,23 @@ impl Session {
     pub fn globs<S: AsRef<str>>(
         &self,
         patterns: &[S],
+        opts: impl Into<Option<GlobsOpts>>,
     ) -> anyhow::Result<impl Iterator<Item = PathBuf>> {
         let Some(path) = &self.path else {
             anyhow::bail!("path not set");
         };
-        let paths_iter = globwalk::GlobWalkerBuilder::from_patterns(path, patterns)
+        let mut glob_walker_builder = globwalk::GlobWalkerBuilder::from_patterns(path, patterns);
+        if let Some(opts) = opts.into() {
+            if let Some(min_depth) = opts.min_depth {
+                glob_walker_builder = glob_walker_builder.min_depth(min_depth);
+            }
+            if let Some(max_depth) = opts.max_depth {
+                glob_walker_builder = glob_walker_builder.max_depth(max_depth);
+            }
+            glob_walker_builder = glob_walker_builder.follow_links(opts.follow_links);
+            glob_walker_builder = glob_walker_builder.case_insensitive(opts.case_insensitive);
+        }
+        let paths_iter = glob_walker_builder
             .build()?
             .filter_map(Result::ok)
             .map(globwalk::DirEntry::into_path);
@@ -216,13 +229,26 @@ impl mlua::UserData for Session {
             this.current_window().map_err(mlua::Error::external)
         });
 
-        methods.add_method("globs", |_, this, patterns: Vec<String>| {
-            let paths = this
-                .globs(&patterns)
-                .map_err(mlua::Error::external)?
-                .map(|path| path.to_string_lossy().to_string())
-                .collect::<Vec<_>>();
-            Ok(paths)
-        });
+        methods.add_method(
+            "globs",
+            |lua, this, (patterns, opts): (Vec<String>, mlua::Value)| {
+                let opts = lua.from_value::<Option<GlobsOpts>>(opts)?;
+                let paths = this
+                    .globs(&patterns, opts)
+                    .map_err(mlua::Error::external)?
+                    .map(|path| path.to_string_lossy().to_string())
+                    .collect::<Vec<_>>();
+                Ok(paths)
+            },
+        );
     }
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct GlobsOpts {
+    min_depth: Option<usize>,
+    max_depth: Option<usize>,
+    follow_links: bool,
+    case_insensitive: bool,
 }
