@@ -1,4 +1,4 @@
-use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher};
+use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher as _};
 
 use crate::{config::Config, tmux::Session};
 

@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use mlua::{Lua, LuaSerdeExt};
+use mlua::{Lua, LuaSerdeExt as _};
 use ratatui::{style::Style, symbols::border};
 use serde::Deserialize;
 use tmux_interface::Size;

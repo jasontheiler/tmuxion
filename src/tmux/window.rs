@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use mlua::LuaSerdeExt;
+use mlua::LuaSerdeExt as _;
 use serde::Deserialize;
 use tmux_interface::{DisplayMessage, SelectLayout, SplitWindow, Tmux};
 
