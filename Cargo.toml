@@ -31,7 +31,7 @@ tmux_interface = { version = "0.3.2", default-features = false, features = [
 unicode-segmentation = "1.11.0"
 
 [lints.rust]
-nonstandard_style = "deny"
+nonstandard_style = { level = "deny", priority = -1 }
 unsafe_code = "forbid"
 
 [lints.clippy]
