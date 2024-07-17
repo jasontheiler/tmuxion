@@ -13,7 +13,6 @@ use crate::{
 #[derive(Debug, Default)]
 pub struct Config {
     inner: Inner,
-    pub lua: Lua,
     pub on_session_created: Option<mlua::OwnedFunction>,
 }
 
@@ -173,13 +172,10 @@ impl Config {
         };
 
         let lua = Lua::new();
-        let mut inner_opt = None;
-        let mut on_session_created = None;
-        {
-            let globals = lua.globals();
-            let package = globals.get::<_, mlua::Table>("package")?;
-            let loaded = package.get::<_, mlua::Table>("loaded")?;
-            let module = match loaded.get(PKG_NAME)? {
+        let globals = lua.globals();
+        let package = globals.get::<_, mlua::Table>("package")?;
+        let loaded = package.get::<_, mlua::Table>("loaded")?;
+        let module = match loaded.get(PKG_NAME)? {
                 mlua::Value::Table(module) => anyhow::Ok(module),
                 mlua::Value::Nil => {
                     let module = lua.create_table()?;
@@ -192,26 +188,25 @@ impl Config {
                 ),
             }?;
 
-            lua.scope(|scope| {
-                let config_fn = scope.create_function_mut(|lua, inner_val: mlua::Value| {
-                    inner_opt = Some(lua.from_value::<Inner>(inner_val)?);
+        let mut inner_opt = None;
+        let mut on_session_created = None;
+        lua.scope(|scope| {
+            let config_fn = scope.create_function_mut(|lua, inner_val: mlua::Value| {
+                inner_opt = Some(lua.from_value::<Inner>(inner_val)?);
+                Ok(())
+            })?;
+            module.set("config", config_fn)?;
+            let on_session_created_fn =
+                scope.create_function_mut(|_, on_session_created_val: mlua::OwnedFunction| {
+                    on_session_created = Some(on_session_created_val);
                     Ok(())
                 })?;
-                module.set("config", config_fn)?;
-                let on_session_created_fn = scope.create_function_mut(
-                    |_, on_session_created_val: mlua::OwnedFunction| {
-                        on_session_created = Some(on_session_created_val);
-                        Ok(())
-                    },
-                )?;
-                module.set("on_session_created", on_session_created_fn)?;
-                lua.load(code).exec()
-            })?;
-        }
+            module.set("on_session_created", on_session_created_fn)?;
+            lua.load(code).exec()
+        })?;
 
         Ok(Self {
             inner: inner_opt.unwrap_or_default(),
-            lua,
             on_session_created,
         })
     }
