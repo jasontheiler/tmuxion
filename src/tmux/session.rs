@@ -231,8 +231,8 @@ impl mlua::UserData for Session {
 
         methods.add_method(
             "globs",
-            |lua, this, (patterns, opts): (Vec<String>, mlua::Value)| {
-                let opts = lua.from_value::<Option<GlobsOpts>>(opts)?;
+            |lua, this, (patterns, opts_val): (Vec<String>, mlua::Value)| {
+                let opts = lua.from_value::<Option<GlobsOpts>>(opts_val)?;
                 let paths = this
                     .globs(&patterns, opts)
                     .map_err(mlua::Error::external)?
