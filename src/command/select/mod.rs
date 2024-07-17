@@ -2,12 +2,14 @@ mod input;
 mod state;
 mod ui;
 
-use crossterm::{
-    cursor::SetCursorStyle,
-    event::{DisableMouseCapture, EnableMouseCapture},
-    terminal::{EnterAlternateScreen, LeaveAlternateScreen},
+use ratatui::{
+    crossterm::{
+        self,
+        cursor::SetCursorStyle,
+        terminal::{EnterAlternateScreen, LeaveAlternateScreen},
+    },
+    prelude::*,
 };
-use ratatui::prelude::*;
 
 use crate::{config::Config, tmux};
 
@@ -17,18 +19,14 @@ pub fn select(config: &Config) -> anyhow::Result<()> {
     tmux::assert_in_session()?;
 
     let mut state = State::new(config)?;
+    let mut terminal = Terminal::new(CrosstermBackend::new(std::io::stdout()))?;
 
     crossterm::terminal::enable_raw_mode()?;
-    let stdout = std::io::stdout();
-    let terminal_backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(terminal_backend)?;
     crossterm::execute!(
         terminal.backend_mut(),
         EnterAlternateScreen,
-        EnableMouseCapture,
-        SetCursorStyle::SteadyBar
+        SetCursorStyle::SteadyBar,
     )?;
-    terminal.hide_cursor()?;
 
     let res = run(config, &mut state, &mut terminal);
 
@@ -36,10 +34,8 @@ pub fn select(config: &Config) -> anyhow::Result<()> {
     crossterm::execute!(
         terminal.backend_mut(),
         LeaveAlternateScreen,
-        DisableMouseCapture,
-        SetCursorStyle::DefaultUserShape
+        SetCursorStyle::DefaultUserShape,
     )?;
-    terminal.show_cursor()?;
 
     res
 }
