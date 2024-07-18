@@ -40,7 +40,7 @@ pub fn set_up(config: &Config) -> anyhow::Result<()> {
         .width(config.session_selector.width.clone())
         .height(config.session_selector.height.clone())
         .no_border()
-        .shell_command(format!("\"{} select\"", SELF_FILE_PATH.to_string_lossy()))
+        .shell_command(format!(r#""{} select""#, SELF_FILE_PATH.to_string_lossy()))
         .close_on_exit()
         .build();
     for key in &config.keybinds.session_selector {
@@ -52,7 +52,7 @@ pub fn set_up(config: &Config) -> anyhow::Result<()> {
     }
 
     let cmd_last_session = RunShell::new()
-        .shell_command(format!("\"{} last\"", SELF_FILE_PATH.to_string_lossy()))
+        .shell_command(format!(r#""{} last""#, SELF_FILE_PATH.to_string_lossy()))
         .build();
     for key in &config.keybinds.last_session {
         tmux_keybind_cmds.push(
