@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::{
     args,
     config::Config,
@@ -7,10 +9,23 @@ use crate::{
 pub fn create(config: &Config, args: &args::Create) -> anyhow::Result<()> {
     let current_session_opt = Session::current(config).ok();
 
+    let path_map_fn = |path: &PathBuf| {
+        if !path.try_exists()? {
+            if !args.create_dirs {
+                anyhow::bail!("path `{}` does not exist", path.to_string_lossy());
+            }
+            std::fs::create_dir_all(path)?;
+        }
+        if path.is_file() {
+            anyhow::bail!("path `{}` is a file", path.to_string_lossy());
+        }
+        let path = path.canonicalize()?;
+        Ok(path)
+    };
     let mut paths = args
         .paths
         .iter()
-        .map(|path| path.canonicalize())
+        .map(path_map_fn)
         .collect::<Result<Vec<_>, _>>()?;
     if paths.is_empty() {
         paths.push(std::env::current_dir()?);
