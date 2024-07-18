@@ -16,17 +16,18 @@ pub struct State {
 impl State {
     pub fn new(config: &Config) -> anyhow::Result<Self> {
         let sessions = Session::all(config)?;
+        let matcher_results = sessions
+            .iter()
+            .enumerate()
+            .map(|(i, ..)| (i, 0, Vec::new()))
+            .collect();
         Ok(Self {
             initial_session: Session::current(config)?,
-            sessions: sessions.clone(),
+            sessions,
             pattern: Vec::new(),
             cursor_pos: 0,
             matcher: SkimMatcherV2::default(),
-            matcher_results: sessions
-                .iter()
-                .enumerate()
-                .map(|(i, ..)| (i, 0, Vec::new()))
-                .collect(),
+            matcher_results,
             scroll_pos: 0,
             selection_pos: 0,
         })
@@ -143,15 +144,16 @@ impl State {
         self.selection_pos = 0;
 
         let pattern = self.pattern_string();
+        let sessions_filter_map_fn = |(i, session): (usize, &Session)| {
+            self.matcher
+                .fuzzy_indices(session.path_str(), &pattern)
+                .map(|(score, char_indices)| (i, score, char_indices))
+        };
         self.matcher_results = self
             .sessions
             .iter()
             .enumerate()
-            .filter_map(|(i, session)| {
-                self.matcher
-                    .fuzzy_indices(session.path_str(), &pattern)
-                    .map(|(score, char_indices)| (i, score, char_indices))
-            })
+            .filter_map(sessions_filter_map_fn)
             .collect::<Vec<_>>();
         self.matcher_results
             .sort_by(|(_, a_score, _), (_, b_score, _)| b_score.cmp(a_score));

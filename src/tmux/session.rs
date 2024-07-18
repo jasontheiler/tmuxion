@@ -33,15 +33,13 @@ pub struct Session {
 impl Session {
     pub fn new(config: &Config, path: &Path) -> anyhow::Result<(Self, bool)> {
         let sessions = Self::all(config)?;
-        let session_opt = sessions
-            .iter()
-            .find(|session| {
-                session
-                    .path
-                    .as_ref()
-                    .is_some_and(|session_path| session_path.as_path() == path)
-            })
-            .cloned();
+        let sessions_find_fn = |session: &&Self| {
+            session
+                .path
+                .as_ref()
+                .is_some_and(|session_path| session_path.as_path() == path)
+        };
+        let session_opt = sessions.iter().find(sessions_find_fn).cloned();
         if let Some(session) = session_opt {
             return Ok((session, true));
         }
@@ -213,10 +211,11 @@ impl Ord for Session {
 impl mlua::UserData for Session {
     fn add_fields<'lua, F: mlua::prelude::LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("path", |_, this| {
-            Ok(this
+            let path = this
                 .path
                 .as_ref()
-                .map(|path| path.to_string_lossy().to_string()))
+                .map(|path| path.to_string_lossy().to_string());
+            Ok(path)
         });
     }
 

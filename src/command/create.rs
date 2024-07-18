@@ -9,7 +9,7 @@ use crate::{
 pub fn create(config: &Config, args: &args::Create) -> anyhow::Result<()> {
     let current_session_opt = Session::current(config).ok();
 
-    let path_map_fn = |path: &PathBuf| {
+    let paths_map_fn = |path: &PathBuf| {
         if !path.try_exists()? {
             if !args.create_dirs {
                 anyhow::bail!("path `{}` does not exist", path.to_string_lossy());
@@ -25,7 +25,7 @@ pub fn create(config: &Config, args: &args::Create) -> anyhow::Result<()> {
     let mut paths = args
         .paths
         .iter()
-        .map(path_map_fn)
+        .map(paths_map_fn)
         .collect::<Result<Vec<_>, _>>()?;
     if paths.is_empty() {
         paths.push(std::env::current_dir()?);

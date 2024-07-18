@@ -13,29 +13,15 @@ pub fn draw(config: &Config, state: &mut State, frame: &mut Frame) {
     if config.session_selector.inverted {
         constraints.reverse();
     };
-
     let layout = Layout::vertical(constraints).split(frame.size());
+    let (area_results, area_prompt) = if config.session_selector.inverted {
+        (layout[1], layout[0])
+    } else {
+        (layout[0], layout[1])
+    };
 
-    draw_results(
-        config,
-        state,
-        frame,
-        if config.session_selector.inverted {
-            layout[1]
-        } else {
-            layout[0]
-        },
-    );
-    draw_prompt(
-        config,
-        state,
-        frame,
-        if config.session_selector.inverted {
-            layout[0]
-        } else {
-            layout[1]
-        },
-    );
+    draw_results(config, state, frame, area_results);
+    draw_prompt(config, state, frame, area_prompt);
 }
 
 fn draw_results(config: &Config, state: &mut State, frame: &mut Frame, area: Rect) {
