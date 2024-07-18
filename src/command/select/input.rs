@@ -36,6 +36,12 @@ pub fn process(config: &Config, state: &mut State) -> anyhow::Result<bool> {
         (KeyModifiers::CONTROL, KeyCode::Char('l')) | (_, KeyCode::Right) => {
             state.cursor_forward();
         }
+        (_, KeyCode::Tab) => {
+            state.selection_next()?;
+        }
+        (_, KeyCode::BackTab) => {
+            state.selection_prev()?;
+        }
         (_, KeyCode::Char(char)) => {
             state.char_add(char)?;
         }
