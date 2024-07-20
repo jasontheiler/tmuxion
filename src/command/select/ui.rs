@@ -32,8 +32,8 @@ fn draw_results(config: &Config, state: &mut State, frame: &mut Frame, area: Rec
         .iter()
         .filter_map(|(i, _, char_indices)| {
             state
-                .get_session_by_index(*i)
-                .map(|session| (session.path_str(), char_indices))
+                .get_session_path_by_index(*i)
+                .map(|session_path| (session_path, char_indices))
         })
         .enumerate()
         .map(|(i, (session_path, char_indices))| {

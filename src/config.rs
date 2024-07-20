@@ -19,27 +19,8 @@ pub struct Config {
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
 pub struct Inner {
-    pub paths: Paths,
     pub session_selector: SessionSelector,
     pub keybinds: Keybinds,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(default)]
-pub struct Paths {
-    pub truncate_home_dir: bool,
-    pub home_dir_symbol: String,
-    pub trailing_slash: bool,
-}
-
-impl Default for Paths {
-    fn default() -> Self {
-        Self {
-            truncate_home_dir: true,
-            home_dir_symbol: String::from("~"),
-            trailing_slash: false,
-        }
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -51,6 +32,7 @@ pub struct SessionSelector {
     pub height: Size,
     pub scrolloff: usize,
     pub inverted: bool,
+    pub paths: SessionSelectorPaths,
     pub results: SessionSelectorResults,
     pub prompt: SessionSelectorPrompt,
 }
@@ -62,8 +44,27 @@ impl Default for SessionSelector {
             height: Size::Size(16),
             scrolloff: 4,
             inverted: false,
+            paths: SessionSelectorPaths::default(),
             results: SessionSelectorResults::default(),
             prompt: SessionSelectorPrompt::default(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default)]
+pub struct SessionSelectorPaths {
+    pub truncate_home_dir: bool,
+    pub home_dir_symbol: String,
+    pub trailing_slash: bool,
+}
+
+impl Default for SessionSelectorPaths {
+    fn default() -> Self {
+        Self {
+            truncate_home_dir: true,
+            home_dir_symbol: String::from("~"),
+            trailing_slash: false,
         }
     }
 }

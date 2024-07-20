@@ -7,7 +7,7 @@ use crate::{
 };
 
 pub fn create(config: &Config, args: &args::Create) -> anyhow::Result<()> {
-    let current_session_opt = Session::current(config).ok();
+    let current_session_opt = Session::current().ok();
 
     let paths_map_fn = |path: &PathBuf| {
         if !path.try_exists()? {
@@ -33,7 +33,7 @@ pub fn create(config: &Config, args: &args::Create) -> anyhow::Result<()> {
 
     let mut session_to_switch_to_opt = Option::<Session>::None;
     for path in &paths {
-        let (session, has_existed) = Session::new(config, path)?;
+        let (session, has_existed) = Session::new(path)?;
         if has_existed {
             if session_to_switch_to_opt.is_none() {
                 session_to_switch_to_opt = Some(session);

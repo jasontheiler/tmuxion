@@ -17,7 +17,7 @@ fn main() -> anyhow::Result<()> {
     match args.command {
         Command::Create(args_create) => command::create(&config, &args_create)?,
         Command::Select => command::select(&config)?,
-        Command::Last => command::last(&config)?,
+        Command::Last => command::last()?,
     }
 
     Ok(())

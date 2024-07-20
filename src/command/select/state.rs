@@ -5,6 +5,7 @@ use crate::{config::Config, tmux::Session};
 pub struct State {
     initial_session: Session,
     sessions: Vec<Session>,
+    session_paths: Vec<String>,
     pattern: Vec<char>,
     cursor_pos: usize,
     matcher: SkimMatcherV2,
@@ -15,15 +16,35 @@ pub struct State {
 
 impl State {
     pub fn new(config: &Config) -> anyhow::Result<Self> {
-        let sessions = Session::all(config)?;
+        let sessions = Session::all()?;
+        let sessions_map_fn = |session: &Session| {
+            let mut path = String::new();
+            match session
+                .path()
+                .strip_prefix(dirs::home_dir().unwrap_or_default())
+            {
+                Ok(path_stripped) if config.session_selector.paths.truncate_home_dir => {
+                    path.push_str(&config.session_selector.paths.home_dir_symbol);
+                    path.push('/');
+                    path.push_str(&path_stripped.to_string_lossy());
+                }
+                _ => path.push_str(&session.path().to_string_lossy()),
+            }
+            if config.session_selector.paths.trailing_slash && session.path().is_dir() {
+                path.push('/');
+            }
+            path
+        };
+        let session_paths = sessions.iter().map(sessions_map_fn).collect();
         let matcher_results = sessions
             .iter()
             .enumerate()
             .map(|(i, ..)| (i, 0, Vec::new()))
             .collect();
         Ok(Self {
-            initial_session: Session::current(config)?,
+            initial_session: Session::current()?,
             sessions,
+            session_paths,
             pattern: Vec::new(),
             cursor_pos: 0,
             matcher: SkimMatcherV2::default(),
@@ -37,8 +58,8 @@ impl State {
         self.sessions.len()
     }
 
-    pub fn get_session_by_index(&self, i: usize) -> Option<&Session> {
-        self.sessions.get(i)
+    pub fn get_session_path_by_index(&self, i: usize) -> Option<&String> {
+        self.session_paths.get(i)
     }
 
     pub fn pattern_string(&self) -> String {
@@ -144,19 +165,19 @@ impl State {
         self.selection_pos = 0;
 
         let pattern = self.pattern_string();
-        let sessions_filter_map_fn = |(i, session): (usize, &Session)| {
+        let session_paths_filter_map_fn = |(i, session_path): (usize, &String)| {
             self.matcher
-                .fuzzy_indices(session.path_str(), &pattern)
+                .fuzzy_indices(session_path, &pattern)
                 .map(|(score, char_indices)| (i, score, char_indices))
         };
         self.matcher_results = self
-            .sessions
+            .session_paths
             .iter()
             .enumerate()
-            .filter_map(sessions_filter_map_fn)
+            .filter_map(session_paths_filter_map_fn)
             .collect::<Vec<_>>();
         self.matcher_results
-            .sort_by(|(_, a_score, _), (_, b_score, _)| b_score.cmp(a_score));
+            .sort_by(|(_, a_score, ..), (_, b_score, ..)| b_score.cmp(a_score));
         self.switch_session(false)
     }
 
@@ -180,7 +201,8 @@ impl State {
             .get(self.selection_pos)
             .ok_or(anyhow::format_err!("selected match result does not exist"))?;
         let session = self
-            .get_session_by_index(*i)
+            .sessions
+            .get(*i)
             .ok_or(anyhow::format_err!("selected session does not exist"))?;
         Ok(Some(session))
     }

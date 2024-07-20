@@ -9,7 +9,6 @@ use tmux_interface::{
 };
 
 use crate::{
-    config::Config,
     consts::CACHE_DIR_PATH,
     tmux::{
         self,
@@ -25,21 +24,16 @@ static LAST_SESSION_FILE_PATH: Lazy<PathBuf> =
 pub struct Session {
     id: String,
     #[serde(default, skip_serializing)]
-    path: Option<PathBuf>,
-    #[serde(default, skip_serializing)]
-    path_string: Option<String>,
+    path: PathBuf,
 }
 
 impl Session {
-    pub fn new(config: &Config, path: &Path) -> anyhow::Result<(Self, bool)> {
-        let sessions = Self::all(config)?;
-        let sessions_find_fn = |session: &&Self| {
-            session
-                .path
-                .as_ref()
-                .is_some_and(|session_path| session_path.as_path() == path)
-        };
-        let session_opt = sessions.iter().find(sessions_find_fn).cloned();
+    pub fn new(path: &Path) -> anyhow::Result<(Self, bool)> {
+        let sessions = Self::all()?;
+        let session_opt = sessions
+            .iter()
+            .find(|session| session.path.as_path() == path)
+            .cloned();
         if let Some(session) = session_opt {
             return Ok((session, true));
         }
@@ -51,70 +45,42 @@ impl Session {
                 .print(),
         )
         .output()?;
-        let session = Self::from_str(config, &output.to_string())?;
+        let session = serde_json::from_str(&output.to_string())?;
         Ok((session, false))
     }
 
-    pub fn current(config: &Config) -> anyhow::Result<Self> {
+    pub fn current() -> anyhow::Result<Self> {
         let output = Tmux::with_command(DisplayMessage::new().message(FORMAT).print()).output()?;
-        let session = Self::from_str(config, &output.to_string())?;
+        let session = serde_json::from_str(&output.to_string())?;
         Ok(session)
     }
 
-    pub fn last(config: &Config) -> anyhow::Result<Option<Self>> {
+    pub fn last() -> anyhow::Result<Option<Self>> {
         let content = match std::fs::read_to_string(LAST_SESSION_FILE_PATH.as_path()) {
             Ok(content) => content,
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(err) => return Err(err.into()),
         };
-        let session = Self::from_str(config, &content)?;
+        let session = serde_json::from_str::<Self>(&content)?;
         let exists = Tmux::with_command(HasSession::new().target_session(&session.id))
             .status()?
             .success();
         Ok(exists.then_some(session))
     }
 
-    pub fn all(config: &Config) -> anyhow::Result<Vec<Self>> {
+    pub fn all() -> anyhow::Result<Vec<Self>> {
         let output = Tmux::with_command(ListSessions::new().format(FORMAT)).output()?;
         let mut sessions = output
             .to_string()
             .lines()
-            .map(|output| Self::from_str(config, output))
-            .collect::<anyhow::Result<Vec<_>>>()?;
+            .map(serde_json::from_str)
+            .collect::<Result<Vec<_>, _>>()?;
         sessions.sort();
         Ok(sessions)
     }
 
-    fn from_str(config: &Config, s: &str) -> anyhow::Result<Self> {
-        let mut session = serde_json::from_str::<Self>(s)?;
-
-        if let Some(path) = &session.path {
-            let mut path_string = String::new();
-
-            match path.strip_prefix(dirs::home_dir().unwrap_or_default()) {
-                Ok(path_stripped) if config.paths.truncate_home_dir => {
-                    path_string.push_str(&config.paths.home_dir_symbol);
-                    path_string.push('/');
-                    path_string.push_str(&path_stripped.to_string_lossy());
-                }
-                _ => path_string.push_str(&path.to_string_lossy()),
-            }
-
-            if config.paths.trailing_slash && path.is_dir() {
-                path_string.push('/');
-            }
-
-            session.path_string = Some(path_string);
-        }
-
-        Ok(session)
-    }
-
-    pub fn path_str(&self) -> &str {
-        self.path_string
-            .as_ref()
-            .map(String::as_ref)
-            .unwrap_or_default()
+    pub fn path(&self) -> &PathBuf {
+        &self.path
     }
 
     pub fn save_as_last(&self) -> anyhow::Result<()> {
@@ -141,7 +107,7 @@ impl Session {
         let output = Tmux::with_command(
             NewWindow::new()
                 .target_window(&self.id)
-                .start_directory(self.path.clone().unwrap_or_default().to_string_lossy())
+                .start_directory(self.path.to_string_lossy())
                 .detached()
                 .format(window::FORMAT)
                 .print(),
@@ -168,10 +134,8 @@ impl Session {
         patterns: &[S],
         opts: impl Into<Option<GlobsOpts>>,
     ) -> anyhow::Result<impl Iterator<Item = PathBuf>> {
-        let Some(path) = &self.path else {
-            anyhow::bail!("path not set");
-        };
-        let mut glob_walker_builder = globwalk::GlobWalkerBuilder::from_patterns(path, patterns);
+        let mut glob_walker_builder =
+            globwalk::GlobWalkerBuilder::from_patterns(&self.path, patterns);
         if let Some(opts) = opts.into() {
             if let Some(min_depth) = opts.min_depth {
                 glob_walker_builder = glob_walker_builder.min_depth(min_depth);
@@ -211,11 +175,7 @@ impl Ord for Session {
 impl mlua::UserData for Session {
     fn add_fields<'lua, F: mlua::prelude::LuaUserDataFields<'lua, Self>>(fields: &mut F) {
         fields.add_field_method_get("path", |_, this| {
-            let path = this
-                .path
-                .as_ref()
-                .map(|path| path.to_string_lossy().to_string());
-            Ok(path)
+            Ok(this.path.to_string_lossy().to_string())
         });
     }
 
