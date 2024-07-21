@@ -31,6 +31,7 @@ pub struct Create {
     /// The directories to create tmux sessions for.
     pub paths: Vec<PathBuf>,
     /// Create directories, if they do not already exist.
+    #[allow(clippy::struct_field_names)]
     #[arg(short, long)]
     pub create_dirs: bool,
 }
