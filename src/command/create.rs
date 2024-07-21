@@ -34,19 +34,23 @@ pub fn create(config: &Config, args: &args::Create) -> anyhow::Result<()> {
     let mut session_to_switch_to_opt = Option::<Session>::None;
     for path in &paths {
         let (session, has_existed) = Session::new(path)?;
+
+        tmux::set_up(config)?;
+
+        if let Some(on_session_created) = &config.on_session_created {
+            on_session_created.call(session.clone())?;
+        };
+
+        if args.detached {
+            continue;
+        }
         if has_existed {
             if session_to_switch_to_opt.is_none() {
                 session_to_switch_to_opt = Some(session);
             }
             continue;
         }
-        session_to_switch_to_opt = Some(session.clone());
-
-        tmux::set_up(config)?;
-
-        if let Some(on_session_created) = &config.on_session_created {
-            on_session_created.call(session)?;
-        };
+        session_to_switch_to_opt = Some(session);
     }
 
     if let Some(session_to_switch_to) = session_to_switch_to_opt {

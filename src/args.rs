@@ -34,4 +34,7 @@ pub struct Create {
     #[allow(clippy::struct_field_names)]
     #[arg(short, long)]
     pub create_dirs: bool,
+    /// Create tmux sessions in the background.
+    #[arg(short, long)]
+    pub detached: bool,
 }
