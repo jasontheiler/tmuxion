@@ -184,7 +184,7 @@ impl Config {
                     anyhow::Ok(module)
                 }
                 other => anyhow::bail!(
-                    "failed to register `{PKG_NAME}` module: `package.loaded.{PKG_NAME}` is already set to a value of type {}",
+                    "failed to register '{PKG_NAME}' module: 'package.loaded.{PKG_NAME}' is already set to a value of type {}",
                     other.type_name()
                 ),
             }?;

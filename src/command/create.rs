@@ -12,12 +12,12 @@ pub fn create(config: &Config, args: &args::Create) -> anyhow::Result<()> {
     let paths_map_fn = |path: &PathBuf| {
         if !path.try_exists()? {
             if !args.create_dirs {
-                anyhow::bail!("path `{}` does not exist", path.to_string_lossy());
+                anyhow::bail!("path '{}' does not exist", path.to_string_lossy());
             }
             std::fs::create_dir_all(path)?;
         }
         if path.is_file() {
-            anyhow::bail!("path `{}` is a file", path.to_string_lossy());
+            anyhow::bail!("path '{}' is a file", path.to_string_lossy());
         }
         let path = path.canonicalize()?;
         Ok(path)
