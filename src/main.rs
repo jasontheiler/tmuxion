@@ -5,7 +5,7 @@ mod consts;
 mod deserializers;
 mod tmux;
 
-use ratatui::crossterm::style::Stylize;
+use ratatui::crossterm::style::Stylize as _;
 
 use self::{
     args::{Args, Command},
