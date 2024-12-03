@@ -45,7 +45,7 @@ where
     B: Backend,
 {
     loop {
-        terminal.draw(|frame| ui::draw(config, state, frame))?;
+        terminal.try_draw(|frame| ui::draw(config, state, frame))?;
         if input::process(config, state)? {
             return Ok(());
         }

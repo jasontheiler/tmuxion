@@ -8,12 +8,12 @@ use crate::config::Config;
 
 use super::state::State;
 
-pub fn draw(config: &Config, state: &mut State, frame: &mut Frame) {
+pub fn draw(config: &Config, state: &mut State, frame: &mut Frame) -> std::io::Result<()> {
     let mut constraints = [Constraint::Percentage(100), Constraint::Min(3)];
     if config.session_selector.inverted {
         constraints.reverse();
     };
-    let layout = Layout::vertical(constraints).split(frame.size());
+    let layout = Layout::vertical(constraints).split(frame.area());
     let (area_results, area_prompt) = if config.session_selector.inverted {
         (layout[1], layout[0])
     } else {
@@ -21,7 +21,9 @@ pub fn draw(config: &Config, state: &mut State, frame: &mut Frame) {
     };
 
     draw_results(config, state, frame, area_results);
-    draw_prompt(config, state, frame, area_prompt);
+    draw_prompt(config, state, frame, area_prompt)?;
+
+    Ok(())
 }
 
 fn draw_results(config: &Config, state: &mut State, frame: &mut Frame, area: Rect) {
@@ -46,7 +48,7 @@ fn draw_results(config: &Config, state: &mut State, frame: &mut Frame, area: Rec
         .border_set(config.session_selector.results.border)
         .border_style(config.session_selector.results.border_style)
         .title(config.session_selector.results.title.clone())
-        .title_alignment(Alignment::Center)
+        .title_alignment(config.session_selector.results.title_alignment)
         .title_style(config.session_selector.results.title_style);
     let list = List::new(items)
         .block(block)
@@ -99,24 +101,30 @@ fn get_results_item<'a>(
     list_item
 }
 
-fn draw_prompt(config: &Config, state: &State, frame: &mut Frame, area: Rect) {
+fn draw_prompt(
+    config: &Config,
+    state: &State,
+    frame: &mut Frame,
+    area: Rect,
+) -> std::io::Result<()> {
     let block = Block::new()
         .style(config.session_selector.prompt.style)
         .borders(Borders::ALL)
         .border_set(config.session_selector.prompt.border)
         .border_style(config.session_selector.prompt.border_style)
         .title(config.session_selector.prompt.title.clone())
-        .title_alignment(Alignment::Center)
+        .title_alignment(config.session_selector.results.title_alignment)
         .title_style(config.session_selector.prompt.title_style);
     let block_inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let stats = config
-        .session_selector
-        .prompt
-        .stats_template
-        .replace("{results}", &state.matcher_results_len().to_string())
-        .replace("{sessions}", &state.sessions_len().to_string());
+    let stats = if let Some(stats_format) = &config.session_selector.prompt.stats_format {
+        stats_format
+            .call((state.matcher_results_len(), state.sessions_len()))
+            .map_err(std::io::Error::other)?
+    } else {
+        format!(" {}/{} ", state.matcher_results_len(), state.sessions_len())
+    };
 
     let pattern_prefix_len = config
         .session_selector
@@ -161,8 +169,10 @@ fn draw_prompt(config: &Config, state: &State, frame: &mut Frame, area: Rect) {
     frame.render_widget(span_stats, layout[2]);
 
     #[allow(clippy::cast_possible_truncation)]
-    frame.set_cursor(
+    frame.set_cursor_position((
         layout[1].x + layout[1].width.min(state.cursor_pos() as u16),
         layout[1].y,
-    );
+    ));
+
+    Ok(())
 }

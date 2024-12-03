@@ -1,9 +1,31 @@
 use ratatui::{
+    layout::Alignment,
     style::{Color, Modifier, Style},
     symbols::border,
 };
 use serde::{de::Visitor, Deserialize, Deserializer};
 use tmux_interface::Size;
+
+const ALIGNMENT_STRING_VALUES: &[&str] = &["left", "center", "right"];
+
+pub fn alignment<'de, D>(deserializer: D) -> Result<Alignment, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let v = String::deserialize(deserializer)?;
+    let alignment = match v.as_str() {
+        "left" => Alignment::Left,
+        "center" => Alignment::Center,
+        "right" => Alignment::Right,
+        v => {
+            return Err(serde::de::Error::unknown_variant(
+                v,
+                ALIGNMENT_STRING_VALUES,
+            ))
+        }
+    };
+    Ok(alignment)
+}
 
 pub fn size<'de, D>(deserializer: D) -> Result<Size, D::Error>
 where
@@ -153,9 +175,7 @@ where
     D: Deserializer<'de>,
 {
     let mut style = Style::new();
-    let Some(style_intermediate) = Option::<StyleIntermediate>::deserialize(deserializer)? else {
-        return Ok(style);
-    };
+    let style_intermediate = StyleIntermediate::deserialize(deserializer)?;
     if let Some(color_str) = style_intermediate.fg {
         let color = color_str
             .parse::<Color>()

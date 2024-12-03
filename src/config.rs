@@ -1,24 +1,17 @@
-use std::ops::Deref;
-
 use mlua::{Lua, LuaSerdeExt as _};
-use ratatui::{style::Style, symbols::border};
+use ratatui::{
+    layout::Alignment,
+    style::{Color, Style},
+    symbols::border,
+};
 use serde::Deserialize;
 use tmux_interface::Size;
 
-use crate::{
-    consts::{CONFIG_FILE_PATH, PKG_NAME},
-    deserializers,
-};
+use crate::{args::Args, deserializers, APP_NAME};
 
 #[derive(Debug, Default)]
 pub struct Config {
-    inner: Inner,
-    pub on_session_created: Option<mlua::OwnedFunction>,
-}
-
-#[derive(Debug, Default, Deserialize)]
-#[serde(default)]
-pub struct Inner {
+    _lua: Lua,
     pub session_selector: SessionSelector,
     pub keybinds: Keybinds,
 }
@@ -79,6 +72,8 @@ pub struct SessionSelectorResults {
     #[serde(deserialize_with = "deserializers::style")]
     pub border_style: Style,
     pub title: String,
+    #[serde(deserialize_with = "deserializers::alignment")]
+    pub title_alignment: Alignment,
     #[serde(deserialize_with = "deserializers::style")]
     pub title_style: Style,
     #[serde(deserialize_with = "deserializers::style")]
@@ -99,9 +94,10 @@ impl Default for SessionSelectorResults {
             border: border::ROUNDED,
             border_style: Style::new(),
             title: String::from(" Results "),
+            title_alignment: Alignment::Center,
             title_style: Style::new(),
             item_style: Style::new(),
-            item_match_style: Style::new(),
+            item_match_style: Style::new().fg(Color::Blue),
             selection_style: Style::new(),
             selection_prefix: String::from("> "),
             selection_prefix_style: Style::new(),
@@ -119,6 +115,8 @@ pub struct SessionSelectorPrompt {
     #[serde(deserialize_with = "deserializers::style")]
     pub border_style: Style,
     pub title: String,
+    #[serde(deserialize_with = "deserializers::alignment")]
+    pub title_alignment: Alignment,
     #[serde(deserialize_with = "deserializers::style")]
     pub title_style: Style,
     #[serde(deserialize_with = "deserializers::style")]
@@ -126,7 +124,8 @@ pub struct SessionSelectorPrompt {
     pub pattern_prefix: String,
     #[serde(deserialize_with = "deserializers::style")]
     pub pattern_prefix_style: Style,
-    pub stats_template: String,
+    #[serde(skip)]
+    pub stats_format: Option<mlua::Function>,
     #[serde(deserialize_with = "deserializers::style")]
     pub stats_style: Style,
 }
@@ -138,11 +137,12 @@ impl Default for SessionSelectorPrompt {
             border: border::ROUNDED,
             border_style: Style::new(),
             title: String::from(" Sessions "),
+            title_alignment: Alignment::Center,
             title_style: Style::new(),
             pattern_style: Style::new(),
             pattern_prefix: String::from("> "),
             pattern_prefix_style: Style::new(),
-            stats_template: String::from("{results}/{sessions}"),
+            stats_format: None,
             stats_style: Style::new(),
         }
     }
@@ -151,72 +151,98 @@ impl Default for SessionSelectorPrompt {
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 pub struct Keybinds {
-    pub session_selector: Vec<String>,
+    pub select_session: Vec<String>,
     pub last_session: Vec<String>,
 }
 
 impl Default for Keybinds {
     fn default() -> Self {
         Self {
-            session_selector: vec![String::from("C-s"), String::from("M-s")],
+            select_session: vec![String::from("C-s")],
             last_session: vec![String::from("w")],
         }
     }
 }
 
 impl Config {
-    pub fn new() -> anyhow::Result<Self> {
-        let code = match std::fs::read_to_string(CONFIG_FILE_PATH.as_path()) {
+    pub fn new(args: &Args) -> anyhow::Result<Self> {
+        let path = args.config_file_path.clone().unwrap_or_else(|| {
+            dirs::home_dir()
+                .unwrap_or_default()
+                .join(".config")
+                .join(APP_NAME)
+                .join("config.lua")
+        });
+        let code = match std::fs::read_to_string(path) {
             Ok(content) => content,
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(Self::default()),
-            Err(err) => anyhow::bail!(err),
+            Err(err) => {
+                if err.kind() == std::io::ErrorKind::NotFound && args.config_file_path.is_none() {
+                    return Ok(Self::default());
+                }
+                anyhow::bail!(err)
+            }
         };
 
         let lua = Lua::new();
         let globals = lua.globals();
-        let package = globals.get::<_, mlua::Table>("package")?;
-        let loaded = package.get::<_, mlua::Table>("loaded")?;
-        let module = match loaded.get(PKG_NAME)? {
+        let package = globals.get::<mlua::Table>("package")?;
+        let loaded = package.get::<mlua::Table>("loaded")?;
+        let module = match loaded.get(APP_NAME)? {
                 mlua::Value::Table(module) => anyhow::Ok(module),
                 mlua::Value::Nil => {
                     let module = lua.create_table()?;
-                    loaded.set(PKG_NAME, module.clone())?;
+                    loaded.set(APP_NAME, module.clone())?;
                     anyhow::Ok(module)
                 }
                 other => anyhow::bail!(
-                    "failed to register '{PKG_NAME}' module: 'package.loaded.{PKG_NAME}' is already set to a value of type {}",
+                    "failed to register '{APP_NAME}' module: 'package.loaded.{APP_NAME}' is already set to a value of type {}",
                     other.type_name()
                 ),
             }?;
 
-        let mut inner_opt = None;
-        let mut on_session_created = None;
+        let deserialize_opts = mlua::DeserializeOptions::default().deny_unsupported_types(false);
+
+        let mut session_selector_opt = None;
+        let mut keybinds_opt = None;
         lua.scope(|scope| {
-            let config_fn = scope.create_function_mut(|lua, inner_val: mlua::Value| {
-                inner_opt = Some(lua.from_value::<Inner>(inner_val)?);
+            let session_selector_fn = scope.create_function_mut(|lua, v: mlua::Value| {
+                let mut session_selector =
+                    lua.from_value_with::<SessionSelector>(v.clone(), deserialize_opts)?;
+                session_selector.prompt.stats_format =
+                    get_session_selector_prompt_stats_format(lua, &v)?;
+                session_selector_opt = Some(session_selector);
                 Ok(())
             })?;
-            module.set("config", config_fn)?;
-            let on_session_created_fn =
-                scope.create_function_mut(|_, on_session_created_val: mlua::OwnedFunction| {
-                    on_session_created = Some(on_session_created_val);
-                    Ok(())
-                })?;
-            module.set("on_session_created", on_session_created_fn)?;
+            module.set("session_selector", session_selector_fn)?;
+
+            let keybinds_fn = scope.create_function_mut(|lua, v: mlua::Value| {
+                keybinds_opt = Some(lua.from_value_with(v, deserialize_opts)?);
+                Ok(())
+            })?;
+            module.set("keybinds", keybinds_fn)?;
+
             lua.load(code).exec()
         })?;
 
         Ok(Self {
-            inner: inner_opt.unwrap_or_default(),
-            on_session_created,
+            _lua: lua,
+            session_selector: session_selector_opt.unwrap_or_default(),
+            keybinds: keybinds_opt.unwrap_or_default(),
         })
     }
 }
 
-impl Deref for Config {
-    type Target = Inner;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
+fn get_session_selector_prompt_stats_format(
+    lua: &Lua,
+    v: &mlua::Value,
+) -> mlua::Result<Option<mlua::Function>> {
+    let Some(session_selector_table) = lua.convert::<Option<mlua::Table>>(v)? else {
+        return Ok(None);
+    };
+    let Some(session_selector_prompt_table) =
+        session_selector_table.get::<Option<mlua::Table>>("prompt")?
+    else {
+        return Ok(None);
+    };
+    session_selector_prompt_table.get("stats_format")
 }

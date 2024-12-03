@@ -2,11 +2,16 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
+use crate::APP_NAME;
+
 #[derive(Debug, Clone, Parser)]
 #[command(version, about)]
 pub struct Args {
     #[command(subcommand)]
     pub command: Command,
+    /// Set path to the configuration file.
+    #[arg(long, env = format!("{}_CONFIG_FILE_PATH", APP_NAME.to_uppercase()))]
+    pub config_file_path: Option<PathBuf>,
 }
 
 impl Args {

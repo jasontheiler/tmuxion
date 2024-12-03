@@ -17,7 +17,7 @@ pub fn create(config: &Config, args: &args::Create) -> anyhow::Result<()> {
             std::fs::create_dir_all(path)?;
         }
         if path.is_file() {
-            anyhow::bail!("path '{}' is a file", path.to_string_lossy());
+            anyhow::bail!("path '{}' points to a file", path.to_string_lossy());
         }
         let path = path.canonicalize()?;
         Ok(path)
@@ -36,10 +36,6 @@ pub fn create(config: &Config, args: &args::Create) -> anyhow::Result<()> {
         let (session, has_existed) = Session::new(path)?;
 
         tmux::set_up(config)?;
-
-        if let Some(on_session_created) = &config.on_session_created {
-            on_session_created.call(session.clone())?;
-        };
 
         if args.detached {
             continue;
