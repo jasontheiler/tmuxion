@@ -3,7 +3,8 @@ use std::path::{Path, PathBuf};
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use tmux_interface::{
-    AttachSession, DisplayMessage, HasSession, ListSessions, NewSession, SwitchClient, Tmux,
+    AttachSession, DisplayMessage, HasSession, ListSessions, NewSession, RenameSession,
+    SwitchClient, Tmux,
 };
 
 use crate::{tmux, APP_NAME};
@@ -45,7 +46,13 @@ impl Session {
                 .print(),
         )
         .output()?;
-        let session = serde_json::from_str(&output.to_string())?;
+        let session = serde_json::from_str::<Self>(&output.to_string())?;
+        Tmux::with_command(
+            RenameSession::new()
+                .target_session(&session.id)
+                .new_name(format!("{APP_NAME}_{}", session.id)),
+        )
+        .status()?;
         Ok((session, false))
     }
 
@@ -69,7 +76,12 @@ impl Session {
     }
 
     pub fn all() -> anyhow::Result<Vec<Self>> {
-        let output = Tmux::with_command(ListSessions::new().format(FORMAT)).output()?;
+        let output = Tmux::with_command(
+            ListSessions::new()
+                .filter(format!("#{{m:{APP_NAME}_*,#{{session_name}}}}"))
+                .format(FORMAT),
+        )
+        .output()?;
         let mut sessions = output
             .to_string()
             .lines()
