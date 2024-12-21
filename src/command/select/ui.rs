@@ -32,14 +32,14 @@ fn draw_results(config: &Config, state: &mut State, frame: &mut Frame, area: Rec
     let items = state
         .visible_matcher_results(area.height as usize)
         .iter()
-        .filter_map(|(i, _, char_indices)| {
+        .filter_map(|(i, _, matched_indices)| {
             state
                 .get_session_path_by_index(*i)
-                .map(|session_path| (session_path, char_indices))
+                .map(|session_path| (session_path, matched_indices))
         })
         .enumerate()
-        .map(|(i, (session_path, char_indices))| {
-            get_results_item(config, session_path, char_indices, state.is_selected(i))
+        .map(|(i, (session_path, matched_indices))| {
+            get_results_item(config, session_path, matched_indices, state.is_selected(i))
         })
         .collect::<Vec<_>>();
     let block = Block::new()
@@ -63,7 +63,7 @@ fn draw_results(config: &Config, state: &mut State, frame: &mut Frame, area: Rec
 fn get_results_item<'a>(
     config: &'a Config,
     session_path: &'a str,
-    char_indices: &'a [usize],
+    matched_indices: &'a [usize],
     is_selected: bool,
 ) -> ListItem<'a> {
     let mut spans = Vec::with_capacity(session_path.len() + 1);
@@ -88,7 +88,7 @@ fn get_results_item<'a>(
         if is_selected {
             style = style.patch(config.session_selector.results.selection_style);
         }
-        if char_indices.binary_search(&i).is_ok() {
+        if matched_indices.binary_search(&i).is_ok() {
             style = style.patch(config.session_selector.results.item_match_style);
         }
         spans.push(Span::styled(String::from(c), style));
@@ -115,7 +115,7 @@ fn draw_prompt(
         .title(config.session_selector.prompt.title.clone())
         .title_alignment(config.session_selector.results.title_alignment)
         .title_style(config.session_selector.prompt.title_style);
-    let block_inner = block.inner(area);
+    let area_inner = block.inner(area);
     frame.render_widget(block, area);
 
     let stats = if let Some(stats_format) = &config.session_selector.prompt.stats_format {
@@ -140,7 +140,7 @@ fn draw_prompt(
         #[allow(clippy::cast_possible_truncation)]
         Constraint::Min(stats_len as u16),
     ])
-    .split(block_inner);
+    .split(area_inner);
 
     let span_pattern_prefix = Span::styled(
         config.session_selector.prompt.pattern_prefix.clone(),

@@ -31,7 +31,7 @@ impl<'a> State<'a> {
                 }
                 _ => path.push_str(&session.path().to_string_lossy()),
             }
-            if config.session_selector.paths.trailing_slash && session.path().is_dir() {
+            if config.session_selector.paths.trailing_slash {
                 path.push('/');
             }
             path
@@ -170,7 +170,7 @@ impl<'a> State<'a> {
         let session_paths_filter_map_fn = |(i, session_path): (usize, &String)| {
             self.matcher
                 .fuzzy_indices(session_path, &pattern)
-                .map(|(score, char_indices)| (i, score, char_indices))
+                .map(|(score, matched_indices)| (i, score, matched_indices))
         };
         self.matcher_results = self
             .session_paths

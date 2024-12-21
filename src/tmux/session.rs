@@ -10,6 +10,7 @@ use tmux_interface::{
 use crate::{tmux, APP_NAME};
 
 const FORMAT: &str = r##"{"id":"#{session_id}","path":"#{session_path}"}"##;
+static NAME_PREFIX: Lazy<String> = Lazy::new(|| format!("{APP_NAME}_"));
 static LAST_SESSION_FILE_PATH: Lazy<PathBuf> = Lazy::new(|| {
     dirs::home_dir()
         .unwrap_or_default()
@@ -50,7 +51,7 @@ impl Session {
         Tmux::with_command(
             RenameSession::new()
                 .target_session(&session.id)
-                .new_name(format!("{APP_NAME}_{}", session.id)),
+                .new_name(format!("{}{}", *NAME_PREFIX, session.id)),
         )
         .status()?;
         Ok((session, false))
@@ -82,7 +83,7 @@ impl Session {
     pub fn all() -> anyhow::Result<Vec<Self>> {
         let output = Tmux::with_command(
             ListSessions::new()
-                .filter(format!("#{{m:{APP_NAME}_*,#{{session_name}}}}"))
+                .filter(format!("#{{m:{}*,#{{session_name}}}}", *NAME_PREFIX))
                 .format(FORMAT),
         )
         .output()?;

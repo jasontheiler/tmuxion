@@ -166,7 +166,7 @@ impl Default for Keybinds {
 
 impl Config {
     pub fn new(args: &Args) -> anyhow::Result<Self> {
-        let path = args.config_file_path.clone().unwrap_or_else(|| {
+        let path = args.config_file.clone().unwrap_or_else(|| {
             dirs::home_dir()
                 .unwrap_or_default()
                 .join(".config")
@@ -176,7 +176,7 @@ impl Config {
         let code = match std::fs::read_to_string(path) {
             Ok(content) => content,
             Err(err) => {
-                if err.kind() == std::io::ErrorKind::NotFound && args.config_file_path.is_none() {
+                if err.kind() == std::io::ErrorKind::NotFound && args.config_file.is_none() {
                     return Ok(Self::default());
                 }
                 anyhow::bail!(err)
