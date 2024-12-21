@@ -16,17 +16,17 @@ const APP_NAME: &str = env!("CARGO_PKG_NAME");
 
 fn main() {
     let args = Args::new();
-    if let Err(err) = run(args) {
+    if let Err(err) = run(&args) {
         eprintln!("{} {err:#}", "error:".dark_red().bold());
         std::process::exit(1);
     }
 }
 
-fn run(args: Args) -> anyhow::Result<()> {
-    let config = Config::new(&args).context("failed to parse configuration file")?;
-    match args.command {
-        Command::Create(args_create) => command::create(&config, &args_create),
-        Command::Select => command::select(&config),
-        Command::Last => command::last(),
+fn run(args: &Args) -> anyhow::Result<()> {
+    let config = Config::new(args).context("failed to parse configuration file")?;
+    match &args.command {
+        Command::Create(args_create) => command::create(args, args_create, &config),
+        Command::Select => command::select(args, &config),
+        Command::Last => command::last(args),
     }
 }

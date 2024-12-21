@@ -12,6 +12,9 @@ pub struct Args {
     /// Set path to the configuration file.
     #[arg(long, env = format!("{}_CONFIG_FILE_PATH", APP_NAME.to_uppercase()))]
     pub config_file_path: Option<PathBuf>,
+    /// Set target tmux client.
+    #[arg(short, long, env = format!("{}_TARGET_CLIENT", APP_NAME.to_uppercase()))]
+    pub target_client: Option<String>,
 }
 
 impl Args {

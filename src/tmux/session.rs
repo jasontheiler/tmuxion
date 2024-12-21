@@ -56,8 +56,12 @@ impl Session {
         Ok((session, false))
     }
 
-    pub fn current() -> anyhow::Result<Self> {
-        let output = Tmux::with_command(DisplayMessage::new().message(FORMAT).print()).output()?;
+    pub fn current(target_client_opt: &Option<String>) -> anyhow::Result<Self> {
+        let mut display_message = DisplayMessage::new().message(FORMAT).print();
+        if let Some(target_client) = target_client_opt {
+            display_message = display_message.target_client(target_client);
+        }
+        let output = Tmux::with_command(display_message).output()?;
         let session = serde_json::from_str(&output.to_string())?;
         Ok(session)
     }
@@ -106,9 +110,13 @@ impl Session {
         Ok(())
     }
 
-    pub fn switch_to(&self) -> anyhow::Result<()> {
+    pub fn switch_to(&self, target_client_opt: &Option<String>) -> anyhow::Result<()> {
         if tmux::assert_in_session().is_ok() {
-            Tmux::with_command(SwitchClient::new().target_session(&self.id)).status()?;
+            let mut switch_client = SwitchClient::new().target_session(&self.id);
+            if let Some(target_client) = target_client_opt {
+                switch_client = switch_client.target_client(target_client);
+            }
+            Tmux::with_command(switch_client).status()?;
         } else {
             Tmux::with_command(AttachSession::new().target_session(&self.id)).status()?;
         }

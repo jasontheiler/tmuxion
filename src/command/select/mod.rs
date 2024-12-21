@@ -11,14 +11,14 @@ use ratatui::{
     prelude::*,
 };
 
-use crate::{config::Config, tmux};
+use crate::{args::Args, config::Config, tmux};
 
 use self::state::State;
 
-pub fn select(config: &Config) -> anyhow::Result<()> {
+pub fn select(args: &Args, config: &Config) -> anyhow::Result<()> {
     tmux::assert_in_session()?;
 
-    let mut state = State::new(config)?;
+    let mut state = State::new(args, config)?;
     let mut terminal = Terminal::new(CrosstermBackend::new(std::io::stdout()))?;
 
     crossterm::terminal::enable_raw_mode()?;

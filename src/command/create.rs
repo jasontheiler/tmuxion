@@ -1,17 +1,17 @@
 use std::path::PathBuf;
 
 use crate::{
-    args,
+    args::{self, Args},
     config::Config,
     tmux::{self, Session},
 };
 
-pub fn create(config: &Config, args: &args::Create) -> anyhow::Result<()> {
-    let current_session_opt = Session::current().ok();
+pub fn create(args: &Args, args_create: &args::Create, config: &Config) -> anyhow::Result<()> {
+    let current_session_opt = Session::current(&args.target_client).ok();
 
     let paths_map_fn = |path: &PathBuf| {
         if !path.try_exists()? {
-            if !args.create_dirs {
+            if !args_create.create_dirs {
                 anyhow::bail!("path '{}' does not exist", path.to_string_lossy());
             }
             std::fs::create_dir_all(path)?;
@@ -22,7 +22,7 @@ pub fn create(config: &Config, args: &args::Create) -> anyhow::Result<()> {
         let path = path.canonicalize()?;
         Ok(path)
     };
-    let mut paths = args
+    let mut paths = args_create
         .paths
         .iter()
         .map(paths_map_fn)
@@ -37,7 +37,7 @@ pub fn create(config: &Config, args: &args::Create) -> anyhow::Result<()> {
 
         tmux::set_up(config)?;
 
-        if args.detached {
+        if args_create.detached {
             continue;
         }
         if has_existed {
@@ -55,7 +55,7 @@ pub fn create(config: &Config, args: &args::Create) -> anyhow::Result<()> {
                 current_session.save_as_last()?;
             }
         }
-        session_to_switch_to.switch_to()?;
+        session_to_switch_to.switch_to(&args.target_client)?;
     }
 
     Ok(())

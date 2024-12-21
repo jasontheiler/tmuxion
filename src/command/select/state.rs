@@ -1,8 +1,9 @@
 use fuzzy_matcher::{skim::SkimMatcherV2, FuzzyMatcher as _};
 
-use crate::{config::Config, tmux::Session};
+use crate::{args::Args, config::Config, tmux::Session};
 
-pub struct State {
+pub struct State<'a> {
+    args: &'a Args,
     initial_session: Session,
     sessions: Vec<Session>,
     session_paths: Vec<String>,
@@ -14,8 +15,8 @@ pub struct State {
     selection_pos: usize,
 }
 
-impl State {
-    pub fn new(config: &Config) -> anyhow::Result<Self> {
+impl<'a> State<'a> {
+    pub fn new(args: &'a Args, config: &Config) -> anyhow::Result<Self> {
         let sessions = Session::all()?;
         let sessions_map_fn = |session: &Session| {
             let mut path = String::new();
@@ -42,7 +43,8 @@ impl State {
             .map(|(i, ..)| (i, 0, Vec::new()))
             .collect();
         Ok(Self {
-            initial_session: Session::current()?,
+            args,
+            initial_session: Session::current(&args.target_client)?,
             sessions,
             session_paths,
             pattern: Vec::new(),
@@ -157,7 +159,7 @@ impl State {
     }
 
     pub fn abort(&self) -> anyhow::Result<()> {
-        self.initial_session.switch_to()
+        self.initial_session.switch_to(&self.args.target_client)
     }
 
     fn match_sessions(&mut self) -> anyhow::Result<()> {
@@ -188,7 +190,7 @@ impl State {
         if save_initial_as_last && *selected_session != self.initial_session {
             self.initial_session.save_as_last()?;
         }
-        selected_session.switch_to()?;
+        selected_session.switch_to(&self.args.target_client)?;
         Ok(())
     }
 
