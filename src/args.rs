@@ -10,10 +10,10 @@ pub struct Args {
     #[command(subcommand)]
     pub command: Command,
     /// Set configuration file.
-    #[arg(long, env = format!("{}_CONFIG_FILE", APP_NAME.to_uppercase()),)]
+    #[arg(long, env = format!("{}_CONFIG_FILE", APP_NAME.to_uppercase()), global = true)]
     pub config_file: Option<PathBuf>,
     /// Set target tmux client.
-    #[arg(short, long, env = format!("{}_TARGET_CLIENT", APP_NAME.to_uppercase()))]
+    #[arg(short, long, env = format!("{}_TARGET_CLIENT", APP_NAME.to_uppercase()), global = true)]
     pub target_client: Option<String>,
 }
 
