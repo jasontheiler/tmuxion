@@ -27,6 +27,7 @@ impl Args {
 pub enum Command {
     /// Create new tmux sessions for all specified directories or the current
     /// directory.
+    #[command(visible_alias = "c")]
     Create(Create),
     #[command(hide = true)]
     Select,
