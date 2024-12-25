@@ -60,7 +60,10 @@ impl Session {
     pub fn current(target_client_opt: &Option<String>) -> anyhow::Result<Self> {
         let mut display_message = DisplayMessage::new().message(FORMAT).print();
         if let Some(target_client) = target_client_opt {
-            display_message = display_message.target_client(target_client);
+            // For the `display-message` command the `target-client` option only
+            // controls in which client's status line the message is displayed
+            // if the output is not printed to stdout.
+            display_message = display_message.target_pane(target_client);
         }
         let output = Tmux::with_command(display_message).output()?;
         let session = serde_json::from_str(&output.to_string())?;
