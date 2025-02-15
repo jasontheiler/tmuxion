@@ -33,7 +33,7 @@ where
 {
     struct SizeVisitor;
 
-    impl<'de> Visitor<'de> for SizeVisitor {
+    impl Visitor<'_> for SizeVisitor {
         type Value = Size;
 
         fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {

@@ -57,7 +57,7 @@ impl Session {
         Ok((session, false))
     }
 
-    pub fn current(target_client_opt: &Option<String>) -> anyhow::Result<Self> {
+    pub fn current(target_client_opt: Option<&String>) -> anyhow::Result<Self> {
         let mut display_message = DisplayMessage::new().message(FORMAT).print();
         if let Some(target_client) = target_client_opt {
             // For the `display-message` command the `target-client` option only
@@ -114,7 +114,7 @@ impl Session {
         Ok(())
     }
 
-    pub fn switch_to(&self, target_client_opt: &Option<String>) -> anyhow::Result<()> {
+    pub fn switch_to(&self, target_client_opt: Option<&String>) -> anyhow::Result<()> {
         if tmux::assert_in_session().is_ok() {
             let mut switch_client = SwitchClient::new().target_session(&self.id);
             if let Some(target_client) = target_client_opt {
