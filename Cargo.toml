@@ -10,7 +10,6 @@ publish = false
 [dependencies]
 anyhow = "1.0.93"
 clap = { version = "4.5.21", features = ["derive", "env", "string"] }
-dirs = "5.0.1"
 fuzzy-matcher = "0.3.7"
 mlua = { version = "0.10.2", features = [
   "lua54",

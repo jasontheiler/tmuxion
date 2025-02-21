@@ -12,7 +12,7 @@ use crate::{APP_NAME, tmux};
 const FORMAT: &str = r##"{"id":"#{session_id}","path":"#{session_path}"}"##;
 static NAME_PREFIX: Lazy<String> = Lazy::new(|| format!("{APP_NAME}_"));
 static LAST_SESSION_FILE_PATH: Lazy<PathBuf> = Lazy::new(|| {
-    dirs::home_dir()
+    std::env::home_dir()
         .unwrap_or_default()
         .join(".cache")
         .join(APP_NAME)

@@ -22,7 +22,7 @@ impl<'a> State<'a> {
             let mut path = String::new();
             match session
                 .path()
-                .strip_prefix(dirs::home_dir().unwrap_or_default())
+                .strip_prefix(std::env::home_dir().unwrap_or_default())
             {
                 Ok(path_stripped) if config.session_selector.paths.truncate_home_dir => {
                     path.push_str(&config.session_selector.paths.home_dir_symbol);

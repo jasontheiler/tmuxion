@@ -167,7 +167,7 @@ impl Default for Keybinds {
 impl Config {
     pub fn new(args: &Args) -> anyhow::Result<Self> {
         let path = args.config_file.clone().unwrap_or_else(|| {
-            dirs::home_dir()
+            std::env::home_dir()
                 .unwrap_or_default()
                 .join(".config")
                 .join(APP_NAME)
