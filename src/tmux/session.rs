@@ -7,7 +7,7 @@ use tmux_interface::{
     SwitchClient, Tmux,
 };
 
-use crate::{tmux, APP_NAME};
+use crate::{APP_NAME, tmux};
 
 const FORMAT: &str = r##"{"id":"#{session_id}","path":"#{session_path}"}"##;
 static NAME_PREFIX: Lazy<String> = Lazy::new(|| format!("{APP_NAME}_"));

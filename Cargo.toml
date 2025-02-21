@@ -4,7 +4,7 @@
 name = "tmuxion"
 version = "0.1.0"
 description = "An opinionated tmux session manager"
-edition = "2021"
+edition = "2024"
 publish = false
 
 [dependencies]

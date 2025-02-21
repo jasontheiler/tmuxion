@@ -3,7 +3,7 @@ use ratatui::{
     style::{Color, Modifier, Style},
     symbols::border,
 };
-use serde::{de::Visitor, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, de::Visitor};
 use tmux_interface::Size;
 
 const ALIGNMENT_STRING_VALUES: &[&str] = &["left", "center", "right"];
@@ -21,7 +21,7 @@ where
             return Err(serde::de::Error::unknown_variant(
                 v,
                 ALIGNMENT_STRING_VALUES,
-            ))
+            ));
         }
     };
     Ok(alignment)
@@ -203,7 +203,7 @@ where
                 return Err(serde::de::Error::unknown_variant(
                     modifier_str,
                     STYLE_MODIFIER_STRING_VALUES,
-                ))
+                ));
             }
         };
         style = style.add_modifier(modifier);

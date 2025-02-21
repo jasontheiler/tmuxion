@@ -7,7 +7,7 @@ use ratatui::{
 use serde::Deserialize;
 use tmux_interface::Size;
 
-use crate::{args::Args, deserializers, APP_NAME};
+use crate::{APP_NAME, args::Args, deserializers};
 
 #[derive(Debug, Default)]
 pub struct Config {
@@ -188,17 +188,17 @@ impl Config {
         let package = globals.get::<mlua::Table>("package")?;
         let loaded = package.get::<mlua::Table>("loaded")?;
         let module = match loaded.get(APP_NAME)? {
-                mlua::Value::Table(module) => anyhow::Ok(module),
-                mlua::Value::Nil => {
-                    let module = lua.create_table()?;
-                    loaded.set(APP_NAME, module.clone())?;
-                    anyhow::Ok(module)
-                }
-                other => anyhow::bail!(
-                    "failed to register '{APP_NAME}' module: 'package.loaded.{APP_NAME}' is already set to a value of type {}",
-                    other.type_name()
-                ),
-            }?;
+            mlua::Value::Table(module) => anyhow::Ok(module),
+            mlua::Value::Nil => {
+                let module = lua.create_table()?;
+                loaded.set(APP_NAME, module.clone())?;
+                anyhow::Ok(module)
+            }
+            other => anyhow::bail!(
+                "failed to register '{APP_NAME}' module: 'package.loaded.{APP_NAME}' is already set to a value of type {}",
+                other.type_name()
+            ),
+        }?;
 
         let deserialize_opts = mlua::DeserializeOptions::default().deny_unsupported_types(false);
 
