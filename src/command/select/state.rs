@@ -4,7 +4,7 @@ use crate::{args::Args, config::Config, tmux::Session};
 
 pub struct State<'a> {
     args: &'a Args,
-    initial_session: Session,
+    initial_session_opt: Option<Session>,
     sessions: Vec<Session>,
     session_paths: Vec<String>,
     pattern: Vec<char>,
@@ -44,7 +44,7 @@ impl<'a> State<'a> {
             .collect();
         Ok(Self {
             args,
-            initial_session: Session::current(args.target_client.as_ref())?,
+            initial_session_opt: Session::current(args.target_client.as_ref())?,
             sessions,
             session_paths,
             pattern: Vec::new(),
@@ -159,8 +159,10 @@ impl<'a> State<'a> {
     }
 
     pub fn abort(&self) -> anyhow::Result<()> {
-        self.initial_session
-            .switch_to(self.args.target_client.as_ref())
+        if let Some(initial_session) = &self.initial_session_opt {
+            return initial_session.switch_to(self.args.target_client.as_ref());
+        }
+        Ok(())
     }
 
     fn match_sessions(&mut self) -> anyhow::Result<()> {
@@ -188,8 +190,12 @@ impl<'a> State<'a> {
         let Some(selected_session) = self.get_selected_session()? else {
             return Ok(());
         };
-        if save_initial_as_last && *selected_session != self.initial_session {
-            self.initial_session.save_as_last()?;
+        if save_initial_as_last {
+            if let Some(initial_session) = &self.initial_session_opt {
+                if initial_session != selected_session {
+                    initial_session.save_as_last()?;
+                }
+            }
         }
         selected_session.switch_to(self.args.target_client.as_ref())?;
         Ok(())

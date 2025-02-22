@@ -7,7 +7,7 @@ use crate::{
 };
 
 pub fn create(args: &Args, args_create: &args::Create, config: &Config) -> anyhow::Result<()> {
-    let current_session_opt = Session::current(args.target_client.as_ref()).ok();
+    let current_session_opt = Session::current(args.target_client.as_ref()).ok().flatten();
 
     let paths_map_fn = |path: &PathBuf| {
         if !path.try_exists()? {

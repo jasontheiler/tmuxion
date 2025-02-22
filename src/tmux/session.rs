@@ -9,7 +9,8 @@ use tmux_interface::{
 
 use crate::{APP_NAME, tmux};
 
-const FORMAT: &str = r##"{"id":"#{session_id}","path":"#{session_path}"}"##;
+const FORMAT: &str =
+    r##"{"id":"#{session_id}","name":"#{session_name}","path":"#{session_path}"}"##;
 static NAME_PREFIX: Lazy<String> = Lazy::new(|| format!("{APP_NAME}_"));
 static LAST_SESSION_FILE_PATH: Lazy<PathBuf> = Lazy::new(|| {
     std::env::home_dir()
@@ -22,6 +23,8 @@ static LAST_SESSION_FILE_PATH: Lazy<PathBuf> = Lazy::new(|| {
 #[derive(Debug, Clone, Eq, Deserialize, Serialize)]
 pub struct Session {
     id: String,
+    #[serde(default, skip_serializing)]
+    name: String,
     #[serde(default, skip_serializing)]
     path: PathBuf,
 }
@@ -51,13 +54,13 @@ impl Session {
         Tmux::with_command(
             RenameSession::new()
                 .target_session(&session.id)
-                .new_name(format!("{}{}", *NAME_PREFIX, session.id)),
+                .new_name(format!("{}{}", NAME_PREFIX.as_str(), session.id)),
         )
         .status()?;
         Ok((session, false))
     }
 
-    pub fn current(target_client_opt: Option<&String>) -> anyhow::Result<Self> {
+    pub fn current(target_client_opt: Option<&String>) -> anyhow::Result<Option<Self>> {
         let mut display_message = DisplayMessage::new().message(FORMAT).print();
         if let Some(target_client) = target_client_opt {
             // For the `display-message` command the `target-client` option only
@@ -66,8 +69,11 @@ impl Session {
             display_message = display_message.target_pane(target_client);
         }
         let output = Tmux::with_command(display_message).output()?;
-        let session = serde_json::from_str(&output.to_string())?;
-        Ok(session)
+        let session = serde_json::from_str::<Self>(&output.to_string())?;
+        Ok(session
+            .name
+            .starts_with(NAME_PREFIX.as_str())
+            .then_some(session))
     }
 
     pub fn last() -> anyhow::Result<Option<Self>> {
@@ -84,17 +90,15 @@ impl Session {
     }
 
     pub fn all() -> anyhow::Result<Vec<Self>> {
-        let output = Tmux::with_command(
-            ListSessions::new()
-                .filter(format!("#{{m:{}*,#{{session_name}}}}", *NAME_PREFIX))
-                .format(FORMAT),
-        )
-        .output()?;
+        let output = Tmux::with_command(ListSessions::new().format(FORMAT)).output()?;
         let mut sessions = output
             .to_string()
             .lines()
             .map(serde_json::from_str)
-            .collect::<Result<Vec<_>, _>>()?;
+            .collect::<Result<Vec<Self>, _>>()?
+            .into_iter()
+            .filter(|session| session.name.starts_with(NAME_PREFIX.as_str()))
+            .collect::<Vec<_>>();
         sessions.sort();
         Ok(sessions)
     }
