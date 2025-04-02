@@ -16,14 +16,14 @@ pub fn process(config: &Config, state: &mut State) -> anyhow::Result<bool> {
     }
 
     match (key.modifiers, key.code) {
-        (KeyModifiers::CONTROL, KeyCode::Char('j')) | (_, KeyCode::Down) => {
+        (KeyModifiers::CONTROL, KeyCode::Char('j' | 'n')) | (_, KeyCode::Down) => {
             if config.session_selector.inverted {
                 state.selection_next()?;
             } else {
                 state.selection_prev()?;
             }
         }
-        (KeyModifiers::CONTROL, KeyCode::Char('k')) | (_, KeyCode::Up) => {
+        (KeyModifiers::CONTROL, KeyCode::Char('k' | 'p')) | (_, KeyCode::Up) => {
             if config.session_selector.inverted {
                 state.selection_prev()?;
             } else {
