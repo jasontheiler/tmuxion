@@ -1,5 +1,3 @@
-use fuzzy_matcher::{FuzzyMatcher as _, skim::SkimMatcherV2};
-
 use crate::{args::Args, config::Config, tmux::Session};
 
 pub struct State<'a> {
@@ -8,15 +6,15 @@ pub struct State<'a> {
     sessions: Vec<Session>,
     session_paths: Vec<String>,
     pattern: Vec<char>,
+    matches: Vec<(usize, Vec<usize>)>,
     cursor_pos: usize,
-    matcher: SkimMatcherV2,
-    matcher_results: Vec<(usize, i64, Vec<usize>)>,
     scroll_pos: usize,
     selection_pos: usize,
 }
 
 impl<'a> State<'a> {
     pub fn new(args: &'a Args, config: &Config) -> anyhow::Result<Self> {
+        let initial_session_opt = Session::current(args.target_client.as_ref())?;
         let sessions = Session::all()?;
         let sessions_map_fn = |session: &Session| {
             let mut path = String::new();
@@ -36,21 +34,20 @@ impl<'a> State<'a> {
             }
             path
         };
-        let session_paths = sessions.iter().map(sessions_map_fn).collect();
-        let matcher_results = sessions
+        let session_paths = sessions.iter().map(sessions_map_fn).collect::<Vec<_>>();
+        let matches = session_paths
             .iter()
             .enumerate()
-            .map(|(i, ..)| (i, 0, Vec::new()))
+            .map(|(i, _)| (i, Vec::new()))
             .collect();
         Ok(Self {
             args,
-            initial_session_opt: Session::current(args.target_client.as_ref())?,
+            initial_session_opt,
             sessions,
             session_paths,
             pattern: Vec::new(),
+            matches,
             cursor_pos: 0,
-            matcher: SkimMatcherV2::default(),
-            matcher_results,
             scroll_pos: 0,
             selection_pos: 0,
         })
@@ -72,17 +69,17 @@ impl<'a> State<'a> {
         self.cursor_pos
     }
 
-    pub fn matcher_results_len(&self) -> usize {
-        self.matcher_results.len()
+    pub fn matches_len(&self) -> usize {
+        self.matches.len()
     }
 
-    pub fn visible_matcher_results(&self, count: usize) -> &[(usize, i64, Vec<usize>)] {
-        let end = (self.scroll_pos + count).min(self.matcher_results.len());
-        &self.matcher_results[self.scroll_pos..end]
+    pub fn visible_matches(&self, count: usize) -> &[(usize, Vec<usize>)] {
+        let end = (self.scroll_pos + count).min(self.matches.len());
+        &self.matches[self.scroll_pos..end]
     }
 
     pub fn adjust_scroll_pos(&mut self, item_count: usize, mut scrolloff: usize) {
-        if item_count == 0 || item_count > self.matcher_results.len() {
+        if item_count == 0 || item_count > self.matches.len() {
             return;
         }
 
@@ -90,8 +87,8 @@ impl<'a> State<'a> {
 
         if self.selection_pos < scrolloff {
             self.scroll_pos = 0;
-        } else if self.selection_pos >= self.matcher_results.len() - scrolloff {
-            self.scroll_pos = self.matcher_results.len() - item_count;
+        } else if self.selection_pos >= self.matches.len() - scrolloff {
+            self.scroll_pos = self.matches.len() - item_count;
         } else if self.selection_pos < self.scroll_pos + scrolloff {
             self.scroll_pos -= 1;
         } else if self.selection_pos >= self.scroll_pos + item_count - scrolloff {
@@ -139,13 +136,13 @@ impl<'a> State<'a> {
     }
 
     pub fn selection_prev(&mut self) -> anyhow::Result<()> {
-        let matcher_results_len = self.matcher_results.len();
+        let matcher_results_len = self.matches.len();
         self.selection_pos = (self.selection_pos + matcher_results_len - 1) % matcher_results_len;
         self.switch_session(false)
     }
 
     pub fn selection_next(&mut self) -> anyhow::Result<()> {
-        self.selection_pos = (self.selection_pos + 1) % self.matcher_results.len();
+        self.selection_pos = (self.selection_pos + 1) % self.matches.len();
         self.switch_session(false)
     }
 
@@ -155,7 +152,7 @@ impl<'a> State<'a> {
 
     pub fn confirm(&self) -> anyhow::Result<bool> {
         self.switch_session(true)?;
-        Ok(!self.matcher_results.is_empty())
+        Ok(!self.matches.is_empty())
     }
 
     pub fn abort(&self) -> anyhow::Result<()> {
@@ -169,20 +166,20 @@ impl<'a> State<'a> {
         self.scroll_pos = 0;
         self.selection_pos = 0;
 
-        let pattern = self.pattern_string();
-        let session_paths_filter_map_fn = |(i, session_path): (usize, &String)| {
-            self.matcher
-                .fuzzy_indices(session_path, &pattern)
-                .map(|(score, matched_indices)| (i, score, matched_indices))
-        };
-        self.matcher_results = self
-            .session_paths
-            .iter()
-            .enumerate()
-            .filter_map(session_paths_filter_map_fn)
-            .collect::<Vec<_>>();
-        self.matcher_results
-            .sort_by(|(_, a_score, ..), (_, b_score, ..)| b_score.cmp(a_score));
+        self.matches = frizbee::match_list(
+            self.pattern_string(),
+            &self.session_paths,
+            #[allow(clippy::cast_possible_truncation)]
+            frizbee::Options {
+                min_score: self.pattern.len() as u16 * 6,
+                max_typos: Some(self.pattern.len() as u16 / 4),
+                matched_indices: true,
+                ..Default::default()
+            },
+        )
+        .iter()
+        .map(|m| (m.index_in_haystack, m.indices.clone().unwrap_or_default()))
+        .collect();
         self.switch_session(false)
     }
 
@@ -202,11 +199,11 @@ impl<'a> State<'a> {
     }
 
     fn get_selected_session(&self) -> anyhow::Result<Option<&Session>> {
-        if self.matcher_results.is_empty() {
+        if self.matches.is_empty() {
             return Ok(None);
         }
         let (i, ..) = self
-            .matcher_results
+            .matches
             .get(self.selection_pos)
             .ok_or(anyhow::format_err!("selected match result does not exist"))?;
         let session = self

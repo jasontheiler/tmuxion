@@ -1,6 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::LazyLock,
+};
 
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use tmux_interface::{
     AttachSession, DisplayMessage, HasSession, ListSessions, NewSession, RenameSession,
@@ -11,8 +13,8 @@ use crate::{APP_NAME, tmux};
 
 const FORMAT: &str =
     r##"{"id":"#{session_id}","name":"#{session_name}","path":"#{session_path}"}"##;
-static NAME_PREFIX: Lazy<String> = Lazy::new(|| format!("{APP_NAME}_"));
-static LAST_SESSION_FILE_PATH: Lazy<PathBuf> = Lazy::new(|| {
+static NAME_PREFIX: LazyLock<String> = LazyLock::new(|| format!("{APP_NAME}_"));
+static LAST_SESSION_FILE_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
     std::env::home_dir()
         .unwrap_or_default()
         .join(".cache")

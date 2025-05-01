@@ -12,7 +12,7 @@ pub fn draw(config: &Config, state: &mut State, frame: &mut Frame) -> std::io::R
     let mut constraints = [Constraint::Percentage(100), Constraint::Min(3)];
     if config.session_selector.inverted {
         constraints.reverse();
-    };
+    }
     let layout = Layout::vertical(constraints).split(frame.area());
     let (area_results, area_prompt) = if config.session_selector.inverted {
         (layout[1], layout[0])
@@ -30,12 +30,13 @@ fn draw_results(config: &Config, state: &mut State, frame: &mut Frame, area: Rec
     state.adjust_scroll_pos(area.height as usize, config.session_selector.scrolloff);
 
     let items = state
-        .visible_matcher_results(area.height as usize)
+        .visible_matches(area.height as usize)
         .iter()
-        .filter_map(|(i, _, matched_indices)| {
-            state
+        .map(|(i, matched_indices)| {
+            let session_path = state
                 .get_session_path_by_index(*i)
-                .map(|session_path| (session_path, matched_indices))
+                .expect("session at index should always exist");
+            (session_path, matched_indices)
         })
         .enumerate()
         .map(|(i, (session_path, matched_indices))| {
@@ -63,7 +64,7 @@ fn draw_results(config: &Config, state: &mut State, frame: &mut Frame, area: Rec
 fn get_results_item<'a>(
     config: &'a Config,
     session_path: &'a str,
-    matched_indices: &'a [usize],
+    matched_indices: &[usize],
     is_selected: bool,
 ) -> ListItem<'a> {
     let mut spans = Vec::with_capacity(session_path.len() + 1);
@@ -120,10 +121,10 @@ fn draw_prompt(
 
     let stats = if let Some(stats_format) = &config.session_selector.prompt.stats_format {
         stats_format
-            .call((state.matcher_results_len(), state.sessions_len()))
+            .call((state.matches_len(), state.sessions_len()))
             .map_err(std::io::Error::other)?
     } else {
-        format!(" {}/{} ", state.matcher_results_len(), state.sessions_len())
+        format!(" {}/{} ", state.matches_len(), state.sessions_len())
     };
 
     let pattern_prefix_len = config
