@@ -114,7 +114,7 @@ fn draw_prompt(
         .border_set(config.session_selector.prompt.border)
         .border_style(config.session_selector.prompt.border_style)
         .title(config.session_selector.prompt.title.clone())
-        .title_alignment(config.session_selector.results.title_alignment)
+        .title_alignment(config.session_selector.prompt.title_alignment)
         .title_style(config.session_selector.prompt.title_style);
     let area_inner = block.inner(area);
     frame.render_widget(block, area);
