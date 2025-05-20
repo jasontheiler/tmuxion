@@ -187,12 +187,11 @@ impl<'a> State<'a> {
         let Some(selected_session) = self.get_selected_session()? else {
             return Ok(());
         };
-        if save_initial_as_last {
-            if let Some(initial_session) = &self.initial_session_opt {
-                if initial_session != selected_session {
-                    initial_session.save_as_last()?;
-                }
-            }
+        if save_initial_as_last
+            && let Some(initial_session) = &self.initial_session_opt
+            && initial_session != selected_session
+        {
+            initial_session.save_as_last()?;
         }
         selected_session.switch_to(self.args.target_client.as_ref())?;
         Ok(())

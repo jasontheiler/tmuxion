@@ -50,10 +50,10 @@ pub fn create(args: &Args, args_create: &args::Create, config: &Config) -> anyho
     }
 
     if let Some(session_to_switch_to) = session_to_switch_to_opt {
-        if let Some(current_session) = current_session_opt {
-            if current_session != session_to_switch_to {
-                current_session.save_as_last()?;
-            }
+        if let Some(current_session) = current_session_opt
+            && current_session != session_to_switch_to
+        {
+            current_session.save_as_last()?;
         }
         session_to_switch_to.switch_to(args.target_client.as_ref())?;
     }
