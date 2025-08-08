@@ -27,10 +27,10 @@ pub fn draw(config: &Config, state: &mut State, frame: &mut Frame) -> std::io::R
 }
 
 fn draw_results(config: &Config, state: &mut State, frame: &mut Frame, area: Rect) {
-    state.adjust_scroll_pos(area.height as usize, config.session_selector.scrolloff);
+    state.adjust_scroll_pos(area.height as usize - 2, config.session_selector.scrolloff);
 
     let items = state
-        .visible_matches(area.height as usize)
+        .visible_matches(area.height as usize - 2)
         .iter()
         .map(|(i, matched_indices)| {
             let session_path = state
