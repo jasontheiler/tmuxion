@@ -167,9 +167,8 @@ impl Default for Keybinds {
 impl Config {
     pub fn new(args: &Args) -> anyhow::Result<Self> {
         let path = args.config_file.clone().unwrap_or_else(|| {
-            std::env::home_dir()
+            dirs::config_dir()
                 .unwrap_or_default()
-                .join(".config")
                 .join(APP_NAME)
                 .join("config.lua")
         });

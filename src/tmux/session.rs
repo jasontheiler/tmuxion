@@ -15,9 +15,8 @@ const FORMAT: &str =
     r##"{"id":"#{session_id}","name":"#{session_name}","path":"#{session_path}"}"##;
 static NAME_PREFIX: LazyLock<String> = LazyLock::new(|| format!("{APP_NAME}_"));
 static LAST_SESSION_FILE_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
-    std::env::home_dir()
+    dirs::cache_dir()
         .unwrap_or_default()
-        .join(".cache")
         .join(APP_NAME)
         .join("last_session.json")
 });
